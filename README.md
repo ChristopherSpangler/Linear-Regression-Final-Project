@@ -1,0 +1,4 @@
+# Linear-Regression-Final-Project
+This project is based upon observational data made up of approximately 651 sample movies produced and released before 2016. It includes data from the website “Rotten Tomatoes“ and the website known as the “Internet movie database” (IMDb). The analysis uses multiple linear regression models and prediction methods in order to draw a correlative relationship between the IMDb “score” of movies, and the variables found on the Rotten Tomatoes website that may predict the score on IMDb, such as genre, run time, rating, critics’ score, and audience score. Using backwards elimination and examination of the adjusted R-squared score, as well as the principles of “parsimony” and “Occam‘s razor,” a multiple linear regression model is constructed, evaluated, and reconfigured. It can be used to predict the score of the movie on IMDb via Rotten Tomatoes variables.
+
+
