@@ -1,0 +1,201 @@
+---
+title: "Modeling and prediction for movies, by Christopher Spangler"
+output:
+  html_document:
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+  pdf_document: default
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+```{r load-data}
+load("_e1fe0c85abec6f73c72d73926884eaca_movies.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+The Data from this observational study is made up of 651 randomly sampled movies produced and released before 2016. It includes data from Rotten Tomatoes and the Internet Movie Database (IMDB). This is not an experiment. It should be noted that much of this data, such as audience and critic scores, is subjective, and while one person might find a movie to be a "good movie,"" another person might find the same movie to be "mediocre" or even downright "bad." This also implies that a non-causal attitude/viewpoint be taken, as viewpoints are relative and not absolute. Only associations can be shown, and, hence, causality cannot be shown. 
+
+* * *
+
+## Part 2: Research question
+
+What attributes might make a good movie that would rate high on the IMDb? I would trust IMDb more than Rotten Tomatoes website, as IMDb has substantially more data and more reviews, more input, in other words. 
+
+First off, let's start removing extraneous data: that means title, title_type, and studio are gone. Let's do the same for anything having to do with release dates of movies/dvd's. Same thing for the director, the five levels of actor, and the website links.  
+
+
+Also, we would need to ignore from out data anything having to do with rotten tomatos, as we are focusing on the IMDb data. That means removing: critics_rating, audience_rating, and audience_score. 
+
+We MUST KEEP critics_score, however, as we need it later for our prediction. 
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+For our Multiple Linear Regression model, let's consider the variables to use: We have already made the assumption that the critics' score might be dependent on the IMDb score, so we should include that. In fact, imdb_rating is the key dependent, investigative variable that we are trying to find out and, effectively, maximize in our model. 
+
+For our EDA, let's check the corellation coefficient "R" for imdb_rating and critics_score:
+```{r}
+movies %>%
+summarize(cor(critics_score, imdb_rating))        
+```
+So we have a relatively strong correllation, as its absolute value is above .6 (a general, but not necessary, rule of thumb for Pearson's R). Let's see if a plot can shed some light on the situation:
+
+```{r}
+ggplot(data = movies, aes(x = critics_score, y = imdb_rating)) + geom_jitter() +
+  geom_smooth(method = "lm")
+```
+As is apparent, there is definitely a linear relationship going on here. It appears as though the critics_score is a good predictor variable for the imdb_rating variable. 
+
+Let's set a model and interpret the slope:
+```{r}
+critics_imdb_model <-lm(imdb_rating ~ critics_score, data = movies)
+summary(critics_imdb_model)
+```
+Written out, the model would be something like:
+
+y^= β0 + β1x
+
+or, with values, about: y^ = 4.808 + 0.029x
+
+
+* * *
+
+## Part 4: Modeling
+
+let's build the FULL MODEL AS THOUGH (almost) EVERYTHING MATTERED and get a summary of it. We will be using backwards elimination to reduce the model for simplicity (occham's razor principle).
+
+```{r}
+full_model <- lm(imdb_rating ~ genre + runtime + mpaa_rating + imdb_num_votes + critics_score + best_pic_nom + best_pic_win + best_actor_win + best_actress_win + best_dir_win + top200_box, data = movies)
+
+summary(full_model)
+summary(full_model)$adj.r.squared
+```
+An
+
+Let's remove top200_box: on second thought, a good movie isn't dependent on a chart limited to 200 movies:
+
+```{r}
+model1 <- lm(imdb_rating ~ genre + runtime + mpaa_rating+ imdb_num_votes + critics_score + best_pic_nom + best_pic_win + best_actor_win + best_actress_win + best_dir_win, data = movies)
+
+summary(model1)
+summary(model1)$adj.r.squared
+```
+That actually reduced the adjusted R-Squared value from .6561 to .656, but it was a good conceptual move, in my opinion. The reduction was insignificant.
+
+Furthermore, let's remove mpaa_rating, as a good movie is independent of rating:
+
+```{r}
+model2 <- lm(imdb_rating ~ genre + runtime + imdb_num_votes + critics_score + best_pic_nom + best_pic_win + best_actor_win + best_actress_win + best_dir_win, data = movies)
+
+summary(model2)
+summary(model2)$adj.r.squared
+
+```
+Again, an insignificant decrease for the sake of parsimony. From .656 to .6559
+
+Now, let's see what happens if we remove best_pic_win, as there is only one of those each year. 
+
+```{r}
+model3 <- lm(imdb_rating ~ genre + runtime + imdb_num_votes + critics_score + best_pic_nom + best_actor_win + best_actress_win + best_dir_win, data = movies)
+
+summary(model3)
+summary(model3)$adj.r.squared
+
+```
+From .6559 to .6557...We're not really affecting the model's accuracy very much, even though the Adjusted R-squared value is going down: it's going down in extremely small increments, again for the sake of simplifying the model.
+
+Let's now try to "pick off" the "best_whatever" variables.
+
+Taking out best_actor_win, best_actress_win, best_director_win or best_pic_nom yields the same new, yet only slightly better, adj-R-squared value(s): .6561 or .6562 Taking them out, one at a time, gives us a new net-value adjusted-R-squared value of: 
+
+```{r}
+model4 <- lm(imdb_rating ~ genre + runtime + imdb_num_votes + critics_score, data = movies)
+
+summary(model4)
+summary(model4)$adj.r.squared
+
+```
+.6557 to .6577 an increase, but not a substantial one. 
+
+So from start to finish, we have gone from .6561 in the full model to .6577 in the end model. This really hasn't done much to the accuracy of the model, but it has reduced it in terms of pieces, and with good justifications, for changing it, along the way.
+
+This leads us to our prediction_model, the one we will use for the prediction of an IMDb rating.
+
+Model Diagnostics:
+
+```{r}
+prediction_model <- lm(imdb_rating ~ genre + runtime + imdb_num_votes + critics_score, data = movies)
+
+summary(prediction_model)
+
+
+#predict.lm(prediction_model)
+
+
+
+
+```
+
+
+
+Linearity
+
+```{r}
+ggplot(data = prediction_model, aes(x = .fitted, y = .resid)) + geom_jitter() + geom_hline(yintercept = 0, linetype = "dashed") 
+
+```
+
+Halfway decent, as most values are within +- 1.75, and without the outliers in the lower left, there really isn't a fan shape at all
+
+Nearly normal residuals
+```{r}
+ggplot(data = prediction_model, aes(x = .resid)) + geom_histogram(binwidth = .15) + xlab("residuals")
+```
+A bit of a left skew, but not too bad--a natural shortcoming of a model, always imperfect.
+
+
+
+normal line plot:
+```{r}
+ggplot(data = prediction_model, aes(sample = .resid)) + stat_qq()
+
+
+```
+Could be worse I suppose... a natural shortcoming, again.
+
+
+* * *
+
+## Part 5: Prediction
+
+To estimate, let's use "Rogue One", a movie in the Star Wars franchise series: 
+
+http://www.imdb.com/title/tt3748528/?ref_=nv_sr_8
+https://www.rottentomatoes.com/m/rogue_one_a_star_wars_story
+
+```{r}
+rogueone <- data.frame(genre = "Action & Adventure",  runtime = 133, imdb_num_votes = 253348, critics_score = 85)
+
+predict(prediction_model, rogueone, interval = "prediction", level = 0.95)
+```
+
+Rogue One is rated at 8.1 on the IMDb movie scale. The model predicts, with 95% confidence, that a movie with the above attributes will have an IMDb score between about 6.2 and 8.7 Rogue one's IMDb rating does indeed fall within this range.
+
+* * *
